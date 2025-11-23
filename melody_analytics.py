@@ -534,7 +534,7 @@ def initialize_agent():
             tools=tools,
             verbose=False,
             handle_parsing_errors=True,
-            max_iterations=2
+            max_iterations=10
         )
         
         return agent_executor
@@ -638,4 +638,5 @@ st.markdown(
     "<small>Built with ❤️ for business growth</small>"
     "</div>", 
     unsafe_allow_html=True
+
 )
