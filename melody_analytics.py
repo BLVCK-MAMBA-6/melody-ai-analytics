@@ -580,7 +580,7 @@ if st.session_state.df is not None:
             try:
                 response = st.session_state.agent_executor.invoke(
                     {"input": user_input},
-                    config={"max_execution_time": 30}
+                    config={"max_execution_time": 120}
                 )
                 agent_response = response.get('output', 'I encountered an error processing your request.')
             except Exception as e:
@@ -640,3 +640,4 @@ st.markdown(
     unsafe_allow_html=True
 
 )
+
