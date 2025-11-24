@@ -188,12 +188,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.markdown("""
-    <div class="melody-header">
-        <h1 class="melody-title">🎵 Melody AI</h1>
-        <p class="melody-subtitle">Advanced Business Analytics for SMBs</p>
-    </div>
-""", unsafe_allow_html=True)
+# Header - Displaying the uploaded banner image
+# Make sure the filename matches exactly what you uploaded to GitHub
+st.image("header_banner.png", use_container_width=True)
 
 # Sidebar
 with st.sidebar:
@@ -640,4 +637,5 @@ st.markdown(
     unsafe_allow_html=True
 
 )
+
 
