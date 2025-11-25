@@ -607,7 +607,7 @@ if st.session_state.df is not None:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         
         if st.session_state.agent_executor is None:
-            st.session_state.agent_executor = initialize_agent()
+            st.session_state.agent_executor = initialize_agent(st.session_state.df)
         
         if st.session_state.agent_executor is None:
             st.error("Failed to initialize Melody AI. Please check your API key.")
@@ -677,6 +677,7 @@ st.markdown(
     unsafe_allow_html=True
 
 )
+
 
 
 
