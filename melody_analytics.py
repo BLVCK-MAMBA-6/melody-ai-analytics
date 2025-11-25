@@ -404,61 +404,89 @@ def filter_data(query: str) -> str:
 def create_visualization(query: str) -> str:
     """Create visualizations based on the query"""
     if st.session_state.df is None:
-        return "No data loaded. Please upload a CSV file first."
+        return "No data loaded."
     
     df = st.session_state.df
+    query = query.lower()
     
     try:
-        # Set Melody AI color scheme
+        # Set styling
         melody_colors = ['#FF1B6D', '#8B1BA8', '#FF6B9D', '#B24BDB', '#FF9EC7']
         sns.set_palette(melody_colors)
         
-        fig, ax = plt.subplots(figsize=(12, 7))
+        fig, ax = plt.subplots(figsize=(10, 6))
         fig.patch.set_facecolor('#f8f9fa')
         ax.set_facecolor('#ffffff')
         
+        # Identify numeric and categorical columns
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        cat_cols = df.select_dtypes(include=['object', 'string']).columns.tolist()
+        cat_cols = df.select_dtypes(include=['object', 'string', 'category']).columns.tolist()
         
-        if "histogram" in query.lower() and numeric_cols:
-            df[numeric_cols[0]].hist(ax=ax, bins=30, color='#FF1B6D', edgecolor='white', alpha=0.8)
-            ax.set_title(f"Distribution of {numeric_cols[0]}", fontsize=16, fontweight='bold', color='#1a1a2e')
-            ax.set_xlabel(numeric_cols[0], fontsize=12, color='#1a1a2e')
-            ax.set_ylabel("Frequency", fontsize=12, color='#1a1a2e')
-            ax.grid(True, alpha=0.3, linestyle='--')
-            
-        elif "scatter" in query.lower() and len(numeric_cols) >= 2:
-            ax.scatter(df[numeric_cols[0]], df[numeric_cols[1]], alpha=0.6, 
-                      color='#FF1B6D', s=50, edgecolors='white', linewidth=0.5)
-            ax.set_xlabel(numeric_cols[0], fontsize=12, color='#1a1a2e', fontweight='bold')
-            ax.set_ylabel(numeric_cols[1], fontsize=12, color='#1a1a2e', fontweight='bold')
-            ax.set_title(f"{numeric_cols[0]} vs {numeric_cols[1]}", fontsize=16, fontweight='bold', color='#1a1a2e')
-            ax.grid(True, alpha=0.3, linestyle='--')
-            
-        elif "bar" in query.lower() and cat_cols:
-            value_counts = df[cat_cols[0]].value_counts().head(10)
-            bars = value_counts.plot(kind='bar', ax=ax, color='#FF1B6D', edgecolor='white', linewidth=1.5)
-            ax.set_title(f"Top 10: {cat_cols[0]}", fontsize=16, fontweight='bold', color='#1a1a2e')
-            ax.set_xlabel(cat_cols[0], fontsize=12, color='#1a1a2e', fontweight='bold')
-            ax.set_ylabel("Count", fontsize=12, color='#1a1a2e', fontweight='bold')
-            plt.xticks(rotation=45, ha='right')
-            ax.grid(True, alpha=0.3, linestyle='--', axis='y')
-            
-        elif len(numeric_cols) > 1:
-            corr = df[numeric_cols[:6]].corr()
-            sns.heatmap(corr, annot=True, cmap='RdPu', center=0, ax=ax, 
-                       fmt='.2f', square=True, linewidths=1, cbar_kws={"shrink": 0.8})
-            ax.set_title("Correlation Heatmap", fontsize=16, fontweight='bold', color='#1a1a2e')
+        # Logic for PIE CHART
+        if "pie" in query:
+            if cat_cols and numeric_cols:
+                # Usually we want a categorical column vs a numeric one (e.g., Price by Car Model)
+                # Check if we need to sort (e.g., "top 3")
+                if "top" in query:
+                    try:
+                        limit = int(''.join(filter(str.isdigit, query)))
+                    except:
+                        limit = 5
+                    
+                    # Group and sum/mean
+                    data = df.groupby(cat_cols[0])[numeric_cols[0]].sum().sort_values(ascending=False).head(limit)
+                    
+                    ax.pie(data, labels=data.index, autopct='%1.1f%%', colors=melody_colors, startangle=90)
+                    ax.set_title(f"Top {limit} {cat_cols[0]} by {numeric_cols[0]}", fontsize=14)
+                else:
+                     # Simple count of a category
+                    data = df[cat_cols[0]].value_counts().head(5)
+                    ax.pie(data, labels=data.index, autopct='%1.1f%%', colors=melody_colors)
+                    ax.set_title(f"Distribution of {cat_cols[0]}", fontsize=14)
+            else:
+                return "I need both categorical and numeric data for a meaningful pie chart."
+
+        # Logic for BAR CHART
+        elif "bar" in query:
+            if cat_cols and numeric_cols:
+                if "top" in query or "most" in query:
+                    # Sort for "top" items
+                    data = df.groupby(cat_cols[0])[numeric_cols[0]].mean().sort_values(ascending=False).head(10)
+                    sns.barplot(x=data.values, y=data.index, ax=ax, palette=melody_colors)
+                else:
+                    # Standard count plot
+                    sns.countplot(y=cat_cols[0], data=df, order=df[cat_cols[0]].value_counts().iloc[:10].index, ax=ax, palette=melody_colors)
+                
+                ax.set_title("Bar Chart Analysis", fontsize=14)
+            else:
+                return "Not enough data for a bar chart."
+
+        # Logic for SCATTER
+        elif "scatter" in query and len(numeric_cols) >= 2:
+            sns.scatterplot(x=df[numeric_cols[0]], y=df[numeric_cols[1]], ax=ax, color='#FF1B6D')
+            ax.set_title(f"{numeric_cols[0]} vs {numeric_cols[1]}", fontsize=14)
+
+        # Logic for HISTOGRAM
+        elif "hist" in query and numeric_cols:
+            sns.histplot(df[numeric_cols[0]], kde=True, ax=ax, color='#FF1B6D')
+            ax.set_title(f"Distribution of {numeric_cols[0]}", fontsize=14)
+
+        # Default to HEATMAP only if specifically asked or if correlation is mentioned
+        elif "correlation" in query or "heatmap" in query:
+            if len(numeric_cols) > 1:
+                sns.heatmap(df[numeric_cols].corr(), annot=True, cmap='RdPu', ax=ax)
+                ax.set_title("Correlation Heatmap", fontsize=14)
+            else:
+                return "Need at least 2 numeric columns for a heatmap."
         else:
-            return "Not enough numeric data for visualization."
-        
+            return "Please specify if you want a Bar, Pie, Scatter, or Histogram chart."
+
         plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
-        
-        return "✅ Visualization created successfully!"
+        st.pyplot(fig) # Render immediately
+        return "I have created the visualization as requested."
+
     except Exception as e:
-        return f"Error creating visualization: {str(e)}"
+        return f"Error generating chart: {str(e)}"
 
 # Create tools
 tools = [
@@ -489,47 +517,60 @@ tools = [
     )
 ]
 
-# Agent prompt
-template = """You are Melody AI, an advanced business analytics assistant for SMBs. Help business owners make data-driven decisions.
+# 1. Create the prompt template WITH column info injection
+template = """You are Melody AI, a smart business analyst. 
+You are working with a dataset that has the following columns:
+{columns_info}
+
+RULES:
+1. ALWAYS look at the column names above before answering.
+2. If the user asks for "transaction value" or "sales", map it to the most relevant numeric column in the list above (e.g., Price, Salary, Cost).
+3. If the user asks for a visualization, you MUST use the CreateVisualization tool. Do not just describe it.
+4. If the user asks to "plot", "graph", or "chart", use CreateVisualization.
 
 Tools: {tools}
 Tool names: {tool_names}
 
-Format:
-Question: the question
-Thought: think about what to do
-Action: tool name from [{tool_names}]
-Action Input: input for the tool
-Observation: tool result
-... (repeat if needed)
-Thought: I have the answer
-Final Answer: clear, business-focused answer
-
 Question: {input}
-{agent_scratchpad}"""
+Thought: {agent_scratchpad}
+"""
 
 prompt = PromptTemplate(
     template=template,
-    input_variables=["input", "agent_scratchpad", "tools", "tool_names"]
+    input_variables=["input", "agent_scratchpad", "tools", "tool_names", "columns_info"]
 )
 
-# Initialize agent
+# 2. Update Initialize Agent to Pass the Columns
 @st.cache_resource
-def initialize_agent():
+def initialize_agent(df=None): # Add df as argument
     try:
         llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash", # Using 1.5-flash as it's more stable for tools
             google_api_key=GEMINI_API_KEY,
             temperature=0,
-            max_output_tokens=1024,
-            request_options={"timeout": 30}
+            max_output_tokens=1024
         )
         
-        agent = create_react_agent(llm=llm, tools=tools, prompt=prompt)
+        # Prepare column info string
+        if df is not None:
+            cols_info = ", ".join(df.columns.tolist())
+            # Add type info for better context
+            for col in df.columns:
+                cols_info += f"\n- {col} ({df[col].dtype})"
+        else:
+            cols_info = "No data loaded yet."
+
+        # Create the agent with the column info partially filled in
+        agent = create_react_agent(
+            llm=llm, 
+            tools=tools, 
+            prompt=prompt.partial(columns_info=cols_info) # Inject columns here!
+        )
+        
         agent_executor = AgentExecutor(
             agent=agent,
             tools=tools,
-            verbose=False,
+            verbose=True,
             handle_parsing_errors=True,
             max_iterations=10
         )
@@ -538,9 +579,8 @@ def initialize_agent():
     except Exception as e:
         st.error(f"Failed to initialize Melody AI: {str(e)}")
         return None
-
 # Main chat interface
-st.markdown("### 💬 Chat with Melody AI")
+st.markdown("### Chat with Melody AI")
 
 # Display chat history
 for message in st.session_state.chat_history:
@@ -637,5 +677,6 @@ st.markdown(
     unsafe_allow_html=True
 
 )
+
 
 
