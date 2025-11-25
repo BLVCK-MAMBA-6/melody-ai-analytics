@@ -618,7 +618,7 @@ def initialize_agent(df=None): # Add df as argument
             tools=tools,
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=10
+            max_iterations=10,
             max_execution_time=120
         )
         
@@ -724,6 +724,7 @@ st.markdown(
     unsafe_allow_html=True
 
 )
+
 
 
 
