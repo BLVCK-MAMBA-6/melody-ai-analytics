@@ -324,52 +324,54 @@ def get_statistics(query: str) -> str:
 def execute_calculation(query: str) -> str:
     """Execute calculations on the dataset"""
     if st.session_state.df is None:
-        return "No data loaded. Please upload a CSV file first."
+        return "No data loaded."
     
     df = st.session_state.df
+    query = query.lower()
     
     try:
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         
-        if not numeric_cols:
-            return "No numeric columns available for calculations."
+        # 1. Identify if a specific column is mentioned in the query
+        target_col = None
+        for col in numeric_cols:
+            if col.lower() in query:
+                target_col = col
+                break
         
-        # Check for max/highest queries with grouping
-        if ("max" in query.lower() or "highest" in query.lower() or "expensive" in query.lower()) and "price" in query.lower():
-            if "model" in query.lower():
-                # Group by Model and find max price
-                result = df.groupby('Model')['Price ($)'].max().sort_values(ascending=False).head(10).to_dict()
-                return json.dumps({"top_10_most_expensive_models": result}, default=str, indent=2)
-            else:
-                max_price_row = df.loc[df['Price ($)'].idxmax()]
-                result = {
-                    "most_expensive_car": {
-                        "model": str(max_price_row.get('Model', 'N/A')),
-                        "company": str(max_price_row.get('Company', 'N/A')),
-                        "price": float(max_price_row['Price ($)']),
-                        "body_style": str(max_price_row.get('Body Style', 'N/A'))
-                    }
-                }
-                return json.dumps(result, default=str, indent=2)
+        # 2. Perform calculation on the SPECIFIC column if found
+        if target_col:
+            if "mean" in query or "average" in query:
+                val = df[target_col].mean()
+                return json.dumps({f"average_{target_col}": float(val)})
+            elif "sum" in query or "total" in query:
+                val = df[target_col].sum()
+                return json.dumps({f"total_{target_col}": float(val)})
+            elif "max" in query or "highest" in query:
+                val = df[target_col].max()
+                return json.dumps({f"max_{target_col}": float(val)})
+            elif "min" in query or "lowest" in query:
+                val = df[target_col].min()
+                return json.dumps({f"min_{target_col}": float(val)})
+                
+        # 3. Fallback: If no specific column found, or if it's a general query
+        if "count" in query:
+            return json.dumps({"total_rows": len(df)})
         
-        elif "sum" in query.lower():
+        elif "correlation" in query:
+             # Limit to first 10 cols to prevent timeout
+            return json.dumps(df[numeric_cols[:10]].corr().to_dict())
+            
+        # 4. Fallback for "Summarize" or general stats
+        elif "sum" in query:
             result = {col: float(df[col].sum()) for col in numeric_cols[:5]}
-        elif "mean" in query.lower() or "average" in query.lower():
+            return json.dumps(result)
+        elif "mean" in query or "average" in query:
             result = {col: float(df[col].mean()) for col in numeric_cols[:5]}
-        elif "median" in query.lower():
-            result = {col: float(df[col].median()) for col in numeric_cols[:5]}
-        elif "correlation" in query.lower():
-            corr_matrix = df[numeric_cols[:5]].corr()
-            result = corr_matrix.to_dict()
-        elif "count" in query.lower():
-            result = {"total_rows": len(df), "total_columns": len(df.columns)}
-        else:
-            result = {
-                "available_operations": ["sum", "mean", "median", "correlation", "count", "max", "min"],
-                "numeric_columns": numeric_cols[:10]
-            }
+            return json.dumps(result)
+            
+        return "I can calculate mean, sum, max, min, or correlation. Please specify a column."
         
-        return json.dumps(result, default=str, indent=2)
     except Exception as e:
         return f"Error in calculation: {str(e)}"
 
@@ -724,6 +726,7 @@ st.markdown(
     unsafe_allow_html=True
 
 )
+
 
 
 
