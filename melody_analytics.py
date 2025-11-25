@@ -488,6 +488,47 @@ def create_visualization(query: str) -> str:
     except Exception as e:
         return f"Error generating chart: {str(e)}"
 
+
+def generate_insights(query: str) -> str:
+    """Generate automatic business insights: summary stats, correlations, and top categories."""
+    if st.session_state.df is None:
+        return "No data loaded."
+    
+    df = st.session_state.df
+    insights = []
+    
+    try:
+        # 1. Numeric Insights (Trends)
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        if numeric_cols:
+            # Correlation check
+            if len(numeric_cols) > 1:
+                corr_matrix = df[numeric_cols].corr().abs()
+                # Select upper triangle of correlation matrix
+                upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+                # Find index of feature columns with correlation greater than 0.7
+                high_corr = [column for column in upper.columns if any(upper[column] > 0.7)]
+                if high_corr:
+                    insights.append(f"📈 **Key Correlation**: Strong relationship found involving {', '.join(high_corr[:3])}.")
+            
+            # Basic stats for first 3 key metrics
+            for col in numeric_cols[:3]:
+                mean_val = df[col].mean()
+                insights.append(f"📊 **{col}**: Average value is {mean_val:,.2f}")
+
+        # 2. Categorical Insights (Top Performers)
+        cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+        if cat_cols:
+            for col in cat_cols[:2]: # Check first 2 categorical columns
+                top_val = df[col].mode()[0]
+                count = df[col].value_counts().iloc[0]
+                insights.append(f"🏆 **Top {col}**: '{top_val}' is the leader with {count} entries.")
+
+        return "\n".join(insights) if insights else "No significant patterns found."
+        
+    except Exception as e:
+        return f"Error generating insights: {str(e)}"
+
 # Create tools
 tools = [
     Tool(
@@ -514,6 +555,11 @@ tools = [
         name="CreateVisualization",
         func=create_visualization,
         description="Create visualizations: histogram, scatter plot, bar chart, or correlation heatmap."
+    ),
+    Tool(
+        name="GenerateInsights",
+        func=generate_insights,
+        description="Use this tool when the user asks for 'insights', 'overview', 'patterns', or 'what can you tell me'. It automatically finds trends and correlations."
     )
 ]
 
@@ -573,6 +619,7 @@ def initialize_agent(df=None): # Add df as argument
             verbose=True,
             handle_parsing_errors=True,
             max_iterations=10
+            max_execution_time=120
         )
         
         return agent_executor
@@ -677,6 +724,7 @@ st.markdown(
     unsafe_allow_html=True
 
 )
+
 
 
 
