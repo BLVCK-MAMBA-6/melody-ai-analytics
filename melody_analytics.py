@@ -343,28 +343,26 @@ def execute_calculation(query: str) -> str:
         if target_col:
             if "mean" in query or "average" in query:
                 val = df[target_col].mean()
-                # Always return a string!
-                return f"{{\"average_{target_col}\": {float(val)}}}"
+                return json.dumps({"average": float(val), "column": target_col})
             elif "sum" in query or "total" in query:
                 val = df[target_col].sum()
-                return f"{{\"total_{target_col}\": {float(val)}}}"
+                return json.dumps({"total": float(val), "column": target_col})
             elif "max" in query or "highest" in query:
                 val = df[target_col].max()
-                return f"{{\"max_{target_col}\": {float(val)}}}"
+                return json.dumps({"max": float(val), "column": target_col})
             elif "min" in query or "lowest" in query:
                 val = df[target_col].min()
-                return f"{{\"min_{target_col}\": {float(val)}}}"
+                return json.dumps({"min": float(val), "column": target_col})
                 
-        # 3. Fallback: If no specific column found, or if it's a general query
+        # 3. Fallback: General queries
         if "count" in query:
-            return "{\"total_rows\": " + str(len(df)) + "}"
+            return json.dumps({"total_rows": int(len(df))})
         
         elif "correlation" in query:
-             # Limit to first 10 cols to prevent timeout
-            corr_data = df[numeric_cols[:10]].corr().to_dict()
-            return json.dumps(corr_data)
+            numeric_cols_limited = numeric_cols[:10]  # Limit for performance
+            corr = df[numeric_cols_limited].corr().to_dict()
+            return json.dumps(corr)
             
-        # 4. Fallback for "Summarize" or general stats
         elif "sum" in query:
             result = {col: float(df[col].sum()) for col in numeric_cols[:5]}
             return json.dumps(result)
@@ -372,10 +370,10 @@ def execute_calculation(query: str) -> str:
             result = {col: float(df[col].mean()) for col in numeric_cols[:5]}
             return json.dumps(result)
             
-        return "I can calculate mean, sum, max, min, or correlation. Please specify a column."
+        return "I can calculate mean, sum, max, min, count, or correlation. Please specify a column or metric."
         
     except Exception as e:
-        return f"Error in calculation: {str(e)}
+        return json.dumps({"error": f"Calculation failed: {str(e)}"})
 
 def filter_data(query: str) -> str:
     """Filter data based on conditions"""
@@ -568,15 +566,15 @@ tools = [
 ]
 
 # 1. Create the prompt template WITH column info injection
-template = """You are Melody AI, a smart business analyst. 
+template = """You are Melody AI, a smart business analyst.
 You are working with a dataset that has the following columns:
 {columns_info}
 
 RULES:
-1. ALWAYS look at the column names above before answering.
-2. If the user asks for "transaction value" or "sales", map it to the most relevant numeric column in the list above (e.g., Price, Salary, Cost).
-3. If the user asks for a visualization, you MUST use the CreateVisualization tool. Do not just describe it.
-4. If the user asks to "plot", "graph", or "chart", use CreateVisualization.
+1. ALWAYS use the provided tools—never guess or make up answers.
+2. If the user asks about "sales", "revenue", or "transaction value", look for numeric columns like 'Price', 'Amount', 'Total', etc.
+3. For visualizations (plot/chart/graph), you MUST call CreateVisualization.
+4. ALL tool outputs are JSON strings. Parse them carefully before answering.
 
 Tools: {tools}
 Tool names: {tool_names}
