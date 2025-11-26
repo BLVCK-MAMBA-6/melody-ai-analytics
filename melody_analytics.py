@@ -118,13 +118,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.markdown(
-    '<div class="melody-header">'
-    '<h1 class="melody-title">🎵 Melody AI</h1>'
-    '<p class="melody-subtitle">Advanced Business Analytics for SMBs</p>'
-    '</div>',
-    unsafe_allow_html=True
-)
+# Header - Displaying the uploaded banner image
+st.image("header_banner.png", use_container_width=True)
 
 # Sidebar
 with st.sidebar:
@@ -617,12 +612,12 @@ with st.expander("💡 Example Questions"):
     
     **Specific Queries:**
     - Which customer has the highest income?
-    - What are the top 3 most expensive cars?
+    - What are the top 3 most expensive products or services?
     - Which product category performs best?
     
     **Visualizations:**
-    - Show me a pie chart of top 3 most expensive cars
-    - Create a bar chart of top 5 companies by price
+    - Show me a pie chart of the top 3 most expensive items.
+    - Create a bar chart of the top 5 companies by revenue or price.
     - Make a histogram of prices
     """)
 
@@ -633,6 +628,7 @@ st.markdown(
     "</div>",
     unsafe_allow_html=True
 )
+
 
 
 
