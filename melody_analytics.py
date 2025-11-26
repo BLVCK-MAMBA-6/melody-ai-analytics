@@ -476,7 +476,7 @@ Thought:{agent_scratchpad}"""
         )
         
         llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
+            model="gemini-2.5-flash",
             google_api_key=GEMINI_API_KEY,
             temperature=0.1,
             convert_system_message_to_human=True
@@ -493,7 +493,7 @@ Thought:{agent_scratchpad}"""
             tools=tools,
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=8,
+            max_iterations=10,
             max_execution_time=90
         )
     except Exception as e:
@@ -577,3 +577,4 @@ st.markdown(
     "</div>",
     unsafe_allow_html=True
 )
+
