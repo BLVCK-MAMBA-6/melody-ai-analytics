@@ -531,7 +531,7 @@ Thought:{agent_scratchpad}"""
         )
         
         llm = ChatGoogleGenerativeAI(
-            model="gemini-3.0-pro",
+            model="gemini-3-pro-preview",
             google_api_key=GEMINI_API_KEY,
             temperature=0.1,
             convert_system_message_to_human=True
@@ -632,4 +632,5 @@ st.markdown(
     "</div>",
     unsafe_allow_html=True
 )
+
 
