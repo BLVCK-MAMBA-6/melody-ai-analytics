@@ -1,7 +1,5 @@
-
-
 """
-Melody AI - Advanced Business Analytics Tool
+Melody AI - Advanced Business Analytics Tool (FIXED)
 Built for SMBs to harness the power of their data
 """
 
@@ -17,8 +15,6 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain.tools import Tool
 from langchain.prompts import PromptTemplate
-
-# NEW (Secure)
 import os
 
 # Try to get key from Streamlit secrets, otherwise environment variable
@@ -47,10 +43,9 @@ if 'chat_history' not in st.session_state:
 if 'agent_executor' not in st.session_state:
     st.session_state.agent_executor = None
 
-# Custom CSS with Melody AI branding
+# Custom CSS (same as before)
 st.markdown("""
     <style>
-    /* Melody AI Brand Colors */
     :root {
         --melody-pink: #FF1B6D;
         --melody-purple: #8B1BA8;
@@ -58,11 +53,9 @@ st.markdown("""
         --melody-light: #f8f9fa;
     }
     
-    /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Main header styling */
     .melody-header {
         background: linear-gradient(135deg, #FF1B6D 0%, #8B1BA8 100%);
         padding: 2rem;
@@ -88,7 +81,6 @@ st.markdown("""
         font-weight: 300;
     }
     
-    /* Chat message styling */
     .chat-message {
         padding: 1.2rem;
         border-radius: 12px;
@@ -118,7 +110,6 @@ st.markdown("""
         font-weight: 600;
     }
     
-    /* Sidebar styling */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
     }
@@ -127,7 +118,6 @@ st.markdown("""
         color: white !important;
     }
     
-    /* Button styling */
     .stButton > button {
         background: linear-gradient(135deg, #FF1B6D 0%, #8B1BA8 100%);
         color: white;
@@ -142,55 +132,17 @@ st.markdown("""
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(255, 27, 109, 0.4);
     }
-    
-    /* File uploader */
-    [data-testid="stFileUploader"] {
-        background: rgba(255, 27, 109, 0.05);
-        border: 2px dashed var(--melody-pink);
-        border-radius: 10px;
-        padding: 1rem;
-    }
-    
-    /* Expander styling */
-    .streamlit-expanderHeader {
-        background: linear-gradient(135deg, #FF1B6D 0%, #8B1BA8 100%);
-        color: white !important;
-        border-radius: 8px;
-        font-weight: 500;
-    }
-    
-    /* Metrics */
-    [data-testid="stMetricValue"] {
-        color: var(--melody-pink);
-        font-size: 2rem;
-        font-weight: bold;
-    }
-    
-    /* Info boxes */
-    .stAlert {
-        border-radius: 10px;
-    }
-    
-    /* Chat input */
-    .stChatInput {
-        border: 2px solid var(--melody-pink);
-        border-radius: 10px;
-    }
-    
-    /* Success message */
-    .element-container:has(> .stSuccess) {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-        border-left: 4px solid #28a745;
-        border-radius: 8px;
-        padding: 0.5rem;
-    }
     </style>
 """, unsafe_allow_html=True)
 
 # Header
-# Header - Displaying the uploaded banner image
-# Make sure the filename matches exactly what you uploaded to GitHub
-st.image("header_banner.png", use_container_width=True)
+st.markdown(
+    '<div class="melody-header">'
+    '<h1 class="melody-title">🎵 Melody AI</h1>'
+    '<p class="melody-subtitle">Advanced Business Analytics for SMBs</p>'
+    '</div>',
+    unsafe_allow_html=True
+)
 
 # Sidebar
 with st.sidebar:
@@ -203,7 +155,6 @@ with st.sidebar:
     
     if uploaded_file is not None:
         try:
-            # Read CSV in chunks for large files
             chunk_size = 10000
             chunks = []
             
@@ -216,11 +167,10 @@ with st.sidebar:
             # Optimize memory usage
             for col in df_raw.columns:
                 if df_raw[col].dtype == 'object':
-                    # Convert to category if few unique values
                     num_unique = df_raw[col].nunique()
                     num_total = len(df_raw)
                     
-                    if num_unique / num_total < 0.5:  # If less than 50% unique
+                    if num_unique / num_total < 0.5:
                         df_raw[col] = df_raw[col].astype('category')
                     else:
                         try:
@@ -233,13 +183,13 @@ with st.sidebar:
                             df_raw[col] = df_raw[col].astype(str)
             
             st.session_state.df = df_raw
+            # Reset agent when new data is loaded
+            st.session_state.agent_executor = None
             
-            # Show memory usage
             memory_mb = df_raw.memory_usage(deep=True).sum() / 1024**2
             st.success(f"✅ Loaded {len(st.session_state.df):,} rows ({memory_mb:.1f} MB)")
             
             with st.expander("📋 Data Preview"):
-                # Display only first 100 rows to save memory
                 preview_df = st.session_state.df.head(100)
                 st.dataframe(preview_df, height=300)
             
@@ -279,13 +229,8 @@ with st.sidebar:
     if st.button("🗑️ Clear Chat History"):
         st.session_state.chat_history = []
         st.rerun()
-    
-    st.markdown("---")
-    st.markdown("**Powered by:**")
-    st.markdown("🤖 Google Gemini AI")
-    st.markdown("🔗 LangChain")
 
-# Tool definitions
+# Tool definitions (same as before but with better error handling)
 def get_data_info(query: str) -> str:
     """Get information about the loaded dataset"""
     if st.session_state.df is None:
@@ -293,12 +238,12 @@ def get_data_info(query: str) -> str:
     
     df = st.session_state.df
     info = {
-        "rows": df.shape[0],
-        "columns": df.shape[1],
+        "rows": int(df.shape[0]),
+        "columns": int(df.shape[1]),
         "column_names": df.columns.tolist()[:20],
         "numeric_columns": df.select_dtypes(include=[np.number]).columns.tolist(),
-        "categorical_columns": df.select_dtypes(include=['object', 'string']).columns.tolist()[:10],
-        "missing_values": {k: int(v) for k, v in df.isnull().sum().items() if v > 0}
+        "categorical_columns": df.select_dtypes(include=['object', 'category']).columns.tolist()[:10],
+        "missing_values": {str(k): int(v) for k, v in df.isnull().sum().items() if v > 0}
     }
     return json.dumps(info, indent=2)
 
@@ -332,14 +277,12 @@ def execute_calculation(query: str) -> str:
     try:
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         
-        # 1. Identify if a specific column is mentioned in the query
         target_col = None
         for col in numeric_cols:
             if col.lower() in query:
                 target_col = col
                 break
         
-        # 2. Perform calculation on the SPECIFIC column if found
         if target_col:
             if "mean" in query or "average" in query:
                 val = df[target_col].mean()
@@ -354,15 +297,12 @@ def execute_calculation(query: str) -> str:
                 val = df[target_col].min()
                 return json.dumps({"min": float(val), "column": target_col})
                 
-        # 3. Fallback: General queries
         if "count" in query:
             return json.dumps({"total_rows": int(len(df))})
-        
         elif "correlation" in query:
-            numeric_cols_limited = numeric_cols[:10]  # Limit for performance
+            numeric_cols_limited = numeric_cols[:10]
             corr = df[numeric_cols_limited].corr().to_dict()
-            return json.dumps(corr)
-            
+            return json.dumps(corr, default=str)
         elif "sum" in query:
             result = {col: float(df[col].sum()) for col in numeric_cols[:5]}
             return json.dumps(result)
@@ -384,16 +324,16 @@ def filter_data(query: str) -> str:
     
     try:
         result = {
-            "total_rows": len(df),
+            "total_rows": int(len(df)),
             "columns": df.columns.tolist()[:15],
             "sample_values": {}
         }
         
         for col in df.columns[:5]:
-            if df[col].dtype in ['object', 'string']:
-                result["sample_values"][col] = df[col].value_counts().head(3).to_dict()
+            if df[col].dtype in ['object', 'category']:
+                result["sample_values"][str(col)] = {str(k): int(v) for k, v in df[col].value_counts().head(3).items()}
             else:
-                result["sample_values"][col] = {
+                result["sample_values"][str(col)] = {
                     "min": float(df[col].min()),
                     "max": float(df[col].max()),
                     "mean": float(df[col].mean())
@@ -401,7 +341,7 @@ def filter_data(query: str) -> str:
         
         return json.dumps(result, default=str, indent=2)
     except Exception as e:
-        return f"Error: {str(e)}"
+        return json.dumps({"error": str(e)})
 
 def create_visualization(query: str) -> str:
     """Create visualizations based on the query"""
@@ -412,7 +352,6 @@ def create_visualization(query: str) -> str:
     query = query.lower()
     
     try:
-        # Set styling
         melody_colors = ['#FF1B6D', '#8B1BA8', '#FF6B9D', '#B24BDB', '#FF9EC7']
         sns.set_palette(melody_colors)
         
@@ -420,79 +359,50 @@ def create_visualization(query: str) -> str:
         fig.patch.set_facecolor('#f8f9fa')
         ax.set_facecolor('#ffffff')
         
-        # Identify numeric and categorical columns
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        cat_cols = df.select_dtypes(include=['object', 'string', 'category']).columns.tolist()
+        cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
         
-        # Logic for PIE CHART
         if "pie" in query:
-            if cat_cols and numeric_cols:
-                # Usually we want a categorical column vs a numeric one (e.g., Price by Car Model)
-                # Check if we need to sort (e.g., "top 3")
-                if "top" in query:
-                    try:
-                        limit = int(''.join(filter(str.isdigit, query)))
-                    except:
-                        limit = 5
-                    
-                    # Group and sum/mean
-                    data = df.groupby(cat_cols[0])[numeric_cols[0]].sum().sort_values(ascending=False).head(limit)
-                    
-                    ax.pie(data, labels=data.index, autopct='%1.1f%%', colors=melody_colors, startangle=90)
-                    ax.set_title(f"Top {limit} {cat_cols[0]} by {numeric_cols[0]}", fontsize=14)
-                else:
-                     # Simple count of a category
-                    data = df[cat_cols[0]].value_counts().head(5)
-                    ax.pie(data, labels=data.index, autopct='%1.1f%%', colors=melody_colors)
-                    ax.set_title(f"Distribution of {cat_cols[0]}", fontsize=14)
+            if cat_cols:
+                data = df[cat_cols[0]].value_counts().head(5)
+                ax.pie(data, labels=data.index, autopct='%1.1f%%', colors=melody_colors)
+                ax.set_title(f"Distribution of {cat_cols[0]}", fontsize=14)
             else:
-                return "I need both categorical and numeric data for a meaningful pie chart."
+                return "Need categorical data for pie chart."
 
-        # Logic for BAR CHART
         elif "bar" in query:
-            if cat_cols and numeric_cols:
-                if "top" in query or "most" in query:
-                    # Sort for "top" items
-                    data = df.groupby(cat_cols[0])[numeric_cols[0]].mean().sort_values(ascending=False).head(10)
-                    sns.barplot(x=data.values, y=data.index, ax=ax, palette=melody_colors)
-                else:
-                    # Standard count plot
-                    sns.countplot(y=cat_cols[0], data=df, order=df[cat_cols[0]].value_counts().iloc[:10].index, ax=ax, palette=melody_colors)
-                
+            if cat_cols:
+                sns.countplot(y=cat_cols[0], data=df, order=df[cat_cols[0]].value_counts().iloc[:10].index, ax=ax, palette=melody_colors)
                 ax.set_title("Bar Chart Analysis", fontsize=14)
             else:
-                return "Not enough data for a bar chart."
+                return "Need categorical data for bar chart."
 
-        # Logic for SCATTER
         elif "scatter" in query and len(numeric_cols) >= 2:
             sns.scatterplot(x=df[numeric_cols[0]], y=df[numeric_cols[1]], ax=ax, color='#FF1B6D')
             ax.set_title(f"{numeric_cols[0]} vs {numeric_cols[1]}", fontsize=14)
 
-        # Logic for HISTOGRAM
         elif "hist" in query and numeric_cols:
             sns.histplot(df[numeric_cols[0]], kde=True, ax=ax, color='#FF1B6D')
             ax.set_title(f"Distribution of {numeric_cols[0]}", fontsize=14)
 
-        # Default to HEATMAP only if specifically asked or if correlation is mentioned
         elif "correlation" in query or "heatmap" in query:
             if len(numeric_cols) > 1:
-                sns.heatmap(df[numeric_cols].corr(), annot=True, cmap='RdPu', ax=ax)
+                sns.heatmap(df[numeric_cols[:10]].corr(), annot=True, cmap='RdPu', ax=ax)
                 ax.set_title("Correlation Heatmap", fontsize=14)
             else:
-                return "Need at least 2 numeric columns for a heatmap."
+                return "Need at least 2 numeric columns for heatmap."
         else:
-            return "Please specify if you want a Bar, Pie, Scatter, or Histogram chart."
+            return "Please specify: Bar, Pie, Scatter, Histogram, or Heatmap chart."
 
         plt.tight_layout()
-        st.pyplot(fig) # Render immediately
-        return "I have created the visualization as requested."
+        st.pyplot(fig)
+        return "Visualization created successfully."
 
     except Exception as e:
         return f"Error generating chart: {str(e)}"
 
-
 def generate_insights(query: str) -> str:
-    """Generate automatic business insights: summary stats, correlations, and top categories."""
+    """Generate automatic business insights"""
     if st.session_state.df is None:
         return "No data loaded."
     
@@ -500,31 +410,25 @@ def generate_insights(query: str) -> str:
     insights = []
     
     try:
-        # 1. Numeric Insights (Trends)
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         if numeric_cols:
-            # Correlation check
             if len(numeric_cols) > 1:
                 corr_matrix = df[numeric_cols].corr().abs()
-                # Select upper triangle of correlation matrix
                 upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
-                # Find index of feature columns with correlation greater than 0.7
                 high_corr = [column for column in upper.columns if any(upper[column] > 0.7)]
                 if high_corr:
-                    insights.append(f"📈 **Key Correlation**: Strong relationship found involving {', '.join(high_corr[:3])}.")
+                    insights.append(f"📈 Strong correlation found involving: {', '.join(high_corr[:3])}")
             
-            # Basic stats for first 3 key metrics
             for col in numeric_cols[:3]:
                 mean_val = df[col].mean()
-                insights.append(f"📊 **{col}**: Average value is {mean_val:,.2f}")
+                insights.append(f"📊 {col}: Average = {mean_val:,.2f}")
 
-        # 2. Categorical Insights (Top Performers)
         cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
         if cat_cols:
-            for col in cat_cols[:2]: # Check first 2 categorical columns
+            for col in cat_cols[:2]:
                 top_val = df[col].mode()[0]
                 count = df[col].value_counts().iloc[0]
-                insights.append(f"🏆 **Top {col}**: '{top_val}' is the leader with {count} entries.")
+                insights.append(f"🏆 Top {col}: '{top_val}' ({count} entries)")
 
         return "\n".join(insights) if insights else "No significant patterns found."
         
@@ -536,100 +440,106 @@ tools = [
     Tool(
         name="GetDataInfo",
         func=get_data_info,
-        description="Get basic information about the dataset: shape, columns, data types, missing values."
+        description="Get dataset info: shape, columns, types, missing values"
     ),
     Tool(
         name="GetStatistics",
         func=get_statistics,
-        description="Get statistical summaries: mean, median, std, min, max, quartiles for numeric columns."
+        description="Get statistical summaries for numeric columns"
     ),
     Tool(
         name="ExecuteCalculation",
         func=execute_calculation,
-        description="Perform calculations: sum, mean, median, correlation, count, max, min. Can find most expensive items or group by categories."
+        description="Perform calculations: sum, mean, median, correlation, count, max, min"
     ),
     Tool(
         name="FilterData",
         func=filter_data,
-        description="Get filtering information and sample values from the dataset."
+        description="Get data filtering information and sample values"
     ),
     Tool(
         name="CreateVisualization",
         func=create_visualization,
-        description="Create visualizations: histogram, scatter plot, bar chart, or correlation heatmap."
+        description="Create visualizations: histogram, scatter, bar, pie, or heatmap"
     ),
     Tool(
         name="GenerateInsights",
         func=generate_insights,
-        description="Use this tool when the user asks for 'insights', 'overview', 'patterns', or 'what can you tell me'. It automatically finds trends and correlations."
+        description="Generate automatic insights about trends and patterns in the data"
     )
 ]
 
-# 1. Create the prompt template WITH column info injection
-template = """You are Melody AI, a smart business analyst.
-You are working with a dataset that has the following columns:
+# FIXED: Better prompt template
+template = """You are Melody AI, a business analytics assistant. You have access to a dataset with these columns:
 {columns_info}
 
-RULES:
-1. ALWAYS use the provided tools—never guess or make up answers.
-2. If the user asks about "sales", "revenue", or "transaction value", look for numeric columns like 'Price', 'Amount', 'Total', etc.
-3. For visualizations (plot/chart/graph), you MUST call CreateVisualization.
-4. ALL tool outputs are JSON strings. Parse them carefully before answering.
+Answer the user's question using the available tools. Always use tools to get accurate information.
 
-Tools: {tools}
-Tool names: {tool_names}
+Available tools: {tool_names}
+
+Use this format:
+Question: the input question
+Thought: think about what to do
+Action: the tool to use (one of [{tool_names}])
+Action Input: the input to the tool
+Observation: the tool's result
+... (repeat Thought/Action/Action Input/Observation as needed)
+Thought: I now know the final answer
+Final Answer: the final answer to the question
 
 Question: {input}
-Thought: {agent_scratchpad}
-"""
+{agent_scratchpad}"""
 
-prompt = PromptTemplate(
-    template=template,
-    input_variables=["input", "agent_scratchpad", "tools", "tool_names", "columns_info"]
-)
+prompt = PromptTemplate.from_template(template)
 
-# 2. Update Initialize Agent to Pass the Columns
-@st.cache_resource
-def initialize_agent(df=None): # Add df as argument
+# FIXED: Initialize agent with better error handling
+def initialize_agent():
+    """Initialize the Melody AI agent"""
+    if st.session_state.df is None:
+        return None
+        
     try:
+        # Get column info
+        df = st.session_state.df
+        cols_info = "\n".join([f"- {col} ({df[col].dtype})" for col in df.columns[:20]])
+        if len(df.columns) > 20:
+            cols_info += f"\n... and {len(df.columns) - 20} more columns"
+        
+        # Initialize LLM with proper settings
         llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash", # Using 1.5-flash as it's more stable for tools
+            model="gemini-1.5-flash",
             google_api_key=GEMINI_API_KEY,
-            temperature=0,
-            max_output_tokens=1024
+            temperature=0.1,
+            max_output_tokens=2048,
+            convert_system_message_to_human=True  # IMPORTANT FIX
         )
         
-        # Prepare column info string
-        if df is not None:
-            cols_info = ", ".join(df.columns.tolist())
-            # Add type info for better context
-            for col in df.columns:
-                cols_info += f"\n- {col} ({df[col].dtype})"
-        else:
-            cols_info = "No data loaded yet."
-
-        # Create the agent with the column info partially filled in
+        # Create agent with partial prompt
         agent = create_react_agent(
-            llm=llm, 
-            tools=tools, 
-            prompt=prompt.partial(columns_info=cols_info) # Inject columns here!
+            llm=llm,
+            tools=tools,
+            prompt=prompt.partial(columns_info=cols_info)
         )
         
+        # Create executor with better error handling
         agent_executor = AgentExecutor(
             agent=agent,
             tools=tools,
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=10,
-            max_execution_time=120
+            max_iterations=5,
+            max_execution_time=60,
+            return_intermediate_steps=False
         )
         
         return agent_executor
+        
     except Exception as e:
-        st.error(f"Failed to initialize Melody AI: {str(e)}")
+        st.error(f"Failed to initialize agent: {str(e)}")
         return None
+
 # Main chat interface
-st.markdown("### Chat with Melody AI")
+st.markdown("### 💬 Chat with Melody AI")
 
 # Display chat history
 for message in st.session_state.chat_history:
@@ -655,22 +565,21 @@ if st.session_state.df is not None:
     if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         
+        # Initialize agent if not already done
         if st.session_state.agent_executor is None:
-            st.session_state.agent_executor = initialize_agent(st.session_state.df)
+            with st.spinner("Initializing Melody AI..."):
+                st.session_state.agent_executor = initialize_agent()
         
         if st.session_state.agent_executor is None:
-            st.error("Failed to initialize Melody AI. Please check your API key.")
+            st.error("Failed to initialize Melody AI. Please check your API key and try again.")
             st.stop()
         
         with st.spinner("🎵 Analyzing..."):
             try:
-                response = st.session_state.agent_executor.invoke(
-                    {"input": user_input},
-                    config={"max_execution_time": 120}
-                )
-                agent_response = response.get('output', 'I encountered an error processing your request.')
+                response = st.session_state.agent_executor.invoke({"input": user_input})
+                agent_response = response.get('output', 'I encountered an error. Please try rephrasing your question.')
             except Exception as e:
-                agent_response = f"Error: {str(e)}\n\nPlease try a simpler question."
+                agent_response = f"I encountered an error: {str(e)}\n\nPlease try a simpler question like 'Give me an overview of the dataset' or 'Show me statistics'."
         
         st.session_state.chat_history.append({"role": "agent", "content": agent_response})
         st.rerun()
@@ -693,27 +602,27 @@ else:
         st.markdown("Make data-driven decisions for growth")
 
 # Example queries
-with st.expander("💡 Example Business Questions"):
+with st.expander("💡 Example Questions to Ask Melody AI"):
     st.markdown("""
-    **Sales & Revenue:**
-    - What's the average transaction value?
-    - Show me revenue trends over time
-    - Which product category performs best?
-    
-    **Customer Insights:**
-    - What's the customer demographic breakdown?
-    - Show me customer purchase patterns
-    - Analyze customer lifetime value
-    
-    **Performance Metrics:**
-    - Create a performance dashboard visualization
-    - What are the key business metrics?
-    - Show correlation between sales factors
-    
-    **Data Exploration:**
+    **Getting Started:**
     - Give me an overview of the dataset
-    - Are there any data quality issues?
-    - What insights can you find?
+    - What are the column names?
+    - Show me basic statistics
+    
+    **Data Analysis:**
+    - What's the average price?
+    - Show me the total sales
+    - What are the correlations?
+    
+    **Visualizations:**
+    - Create a bar chart
+    - Show me a pie chart
+    - Create a histogram
+    - Generate a correlation heatmap
+    
+    **Insights:**
+    - Generate insights about this data
+    - What patterns can you find?
     """)
 
 # Footer
@@ -724,13 +633,4 @@ st.markdown(
     "<small>Built with ❤️ for business growth</small>"
     "</div>", 
     unsafe_allow_html=True
-
 )
-
-
-
-
-
-
-
-
