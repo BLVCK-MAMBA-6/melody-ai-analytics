@@ -1,5 +1,5 @@
 """
-Melody AI - Advanced Business Analytics Tool (FIXED)
+Melody AI - Advanced Business Analytics Tool (FIXED v2)
 Built for SMBs to harness the power of their data
 """
 
@@ -14,7 +14,7 @@ import seaborn as sns
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain.tools import Tool
-from langchain.prompts import PromptTemplate
+from langchain import hub
 import os
 
 # Try to get key from Streamlit secrets, otherwise environment variable
@@ -43,7 +43,7 @@ if 'chat_history' not in st.session_state:
 if 'agent_executor' not in st.session_state:
     st.session_state.agent_executor = None
 
-# Custom CSS (same as before)
+# Custom CSS
 st.markdown("""
     <style>
     :root {
@@ -230,7 +230,7 @@ with st.sidebar:
         st.session_state.chat_history = []
         st.rerun()
 
-# Tool definitions (same as before but with better error handling)
+# Tool definitions
 def get_data_info(query: str) -> str:
     """Get information about the loaded dataset"""
     if st.session_state.df is None:
@@ -469,30 +469,7 @@ tools = [
     )
 ]
 
-# FIXED: Better prompt template
-template = """You are Melody AI, a business analytics assistant. You have access to a dataset with these columns:
-{columns_info}
-
-Answer the user's question using the available tools. Always use tools to get accurate information.
-
-Available tools: {tool_names}
-
-Use this format:
-Question: the input question
-Thought: think about what to do
-Action: the tool to use (one of [{tool_names}])
-Action Input: the input to the tool
-Observation: the tool's result
-... (repeat Thought/Action/Action Input/Observation as needed)
-Thought: I now know the final answer
-Final Answer: the final answer to the question
-
-Question: {input}
-{agent_scratchpad}"""
-
-prompt = PromptTemplate.from_template(template)
-
-# FIXED: Initialize agent with better error handling
+# FIXED: Use the standard ReAct prompt from hub
 def initialize_agent():
     """Initialize the Melody AI agent"""
     if st.session_state.df is None:
@@ -505,23 +482,33 @@ def initialize_agent():
         if len(df.columns) > 20:
             cols_info += f"\n... and {len(df.columns) - 20} more columns"
         
-        # Initialize LLM with proper settings
+        # Initialize LLM
         llm = ChatGoogleGenerativeAI(
             model="gemini-1.5-flash",
             google_api_key=GEMINI_API_KEY,
             temperature=0.1,
             max_output_tokens=2048,
-            convert_system_message_to_human=True  # IMPORTANT FIX
+            convert_system_message_to_human=True
         )
         
-        # Create agent with partial prompt
+        # Pull the standard ReAct prompt from LangChain Hub
+        prompt = hub.pull("hwchase17/react")
+        
+        # Add column context to the prompt prefix
+        prompt.messages[0].prompt.template = (
+            f"You are Melody AI, a business analytics assistant.\n\n"
+            f"You are working with a dataset that has these columns:\n{cols_info}\n\n"
+            + prompt.messages[0].prompt.template
+        )
+        
+        # Create agent
         agent = create_react_agent(
             llm=llm,
             tools=tools,
-            prompt=prompt.partial(columns_info=cols_info)
+            prompt=prompt
         )
         
-        # Create executor with better error handling
+        # Create executor
         agent_executor = AgentExecutor(
             agent=agent,
             tools=tools,
