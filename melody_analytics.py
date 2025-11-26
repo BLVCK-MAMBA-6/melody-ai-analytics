@@ -405,7 +405,7 @@ Thought:{agent_scratchpad}"""
             tools=tools,
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=5,
+            max_iterations=10,
             max_execution_time=60
         )
     except Exception as e:
@@ -477,4 +477,5 @@ st.markdown(
     "</div>",
     unsafe_allow_html=True
 )
+
 
