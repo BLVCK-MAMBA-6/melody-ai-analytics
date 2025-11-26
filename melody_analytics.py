@@ -453,7 +453,7 @@ def create_chart(query: str) -> str:
         if chart_created:
             plt.tight_layout()
             st.session_state.last_viz = fig
-            return "CHART_CREATED"
+            return "VISUALIZATION_DISPLAYED_ABOVE - Tell user to look above this message for the chart"
         else:
             return "Please specify: pie, bar, histogram, or scatter chart"
             
@@ -480,7 +480,7 @@ tools = [
     Tool(
         name="CreateChart",
         func=create_chart,
-        description="Create visualizations: pie chart, bar chart, histogram, scatter plot. MUST specify chart type and optionally column names. Returns 'CHART_CREATED' when successful."
+        description="Create visualizations: pie chart, bar chart, histogram, scatter plot. MUST specify chart type and optionally column names. Returns 'VISUALIZATION_DISPLAYED_ABOVE' when successful - then tell user the chart is shown above."
     )
 ]
 
@@ -531,7 +531,7 @@ Thought:{agent_scratchpad}"""
         )
         
         llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
+            model="gemini-1.5-flash",
             google_api_key=GEMINI_API_KEY,
             temperature=0.1,
             convert_system_message_to_human=True
@@ -558,11 +558,6 @@ Thought:{agent_scratchpad}"""
 # Chat interface
 st.markdown("### 💬 Chat with Melody AI")
 
-# Display last visualization if exists
-if st.session_state.last_viz is not None:
-    st.pyplot(st.session_state.last_viz)
-    st.markdown("---")
-
 for msg in st.session_state.chat_history:
     css_class = "user-message" if msg['role'] == 'user' else "agent-message"
     icon = "👤" if msg['role'] == 'user' else "🎵"
@@ -573,6 +568,12 @@ for msg in st.session_state.chat_history:
         f'</div>',
         unsafe_allow_html=True
     )
+    
+    # Display visualization right after the agent message that created it
+    if msg['role'] == 'agent' and ('CHART_CREATED' in msg['content'] or 'chart' in msg['content'].lower() or 'visualization' in msg['content'].lower()):
+        if st.session_state.last_viz is not None:
+            st.pyplot(st.session_state.last_viz)
+            st.markdown("---")
 
 if st.session_state.df is not None:
     user_input = st.chat_input("Ask Melody AI...")
