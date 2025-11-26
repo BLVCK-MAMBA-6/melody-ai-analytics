@@ -183,7 +183,7 @@ def get_data_info(query: str) -> str:
     }, indent=2)
 
 def query_data(query: str) -> str:
-    """Query specific data - find top values, filter, search"""
+    """Query specific data - find top values, filter, search, analyze patterns"""
     if st.session_state.df is None:
         return "No data loaded"
     
@@ -191,32 +191,76 @@ def query_data(query: str) -> str:
     query_lower = query.lower()
     
     try:
-        # Find highest/lowest values
-        if "highest" in query_lower or "maximum" in query_lower or "top" in query_lower:
-            # Find numeric column mentioned
+        # Keywords that indicate we want specific records/names
+        wants_records = any(word in query_lower for word in ["which", "who", "what", "name", "customer", "show me"])
+        
+        # Find highest/lowest values WITH names
+        if "highest" in query_lower or "maximum" in query_lower or "most expensive" in query_lower or "best" in query_lower:
             numeric_cols = df.select_dtypes(include=[np.number]).columns
             target_col = None
+            
+            # Find the numeric column mentioned
             for col in numeric_cols:
                 if col.lower() in query_lower:
                     target_col = col
                     break
             
+            # If no specific column, try to infer from keywords
+            if not target_col:
+                if "income" in query_lower:
+                    for col in numeric_cols:
+                        if "income" in col.lower():
+                            target_col = col
+                            break
+                elif "price" in query_lower or "cost" in query_lower or "expensive" in query_lower:
+                    for col in numeric_cols:
+                        if "price" in col.lower() or "cost" in col.lower():
+                            target_col = col
+                            break
+                elif "sales" in query_lower or "revenue" in query_lower:
+                    for col in numeric_cols:
+                        if "sales" in col.lower() or "revenue" in col.lower():
+                            target_col = col
+                            break
+            
+            # Default to first numeric column if still not found
+            if not target_col and len(numeric_cols) > 0:
+                target_col = numeric_cols[0]
+            
             if target_col:
-                # Get top N rows
-                n = 3  # default
-                if "top 5" in query_lower or "5 highest" in query_lower:
+                n = 1  # default to just top 1 for "which customer has highest"
+                if "top 3" in query_lower or "3 highest" in query_lower or "3 most" in query_lower:
+                    n = 3
+                elif "top 5" in query_lower or "5 highest" in query_lower:
                     n = 5
                 elif "top 10" in query_lower:
                     n = 10
                 
                 top_rows = df.nlargest(n, target_col)
+                
+                # Build comprehensive result with ALL relevant columns
                 result = []
                 for idx, row in top_rows.iterrows():
-                    result.append({col: str(row[col]) for col in df.columns[:10]})
-                return json.dumps({"top_results": result, "sorted_by": target_col}, indent=2)
+                    row_data = {}
+                    # Include ALL columns for complete answer
+                    for col in df.columns:
+                        val = row[col]
+                        # Convert to string, handle various types
+                        if pd.isna(val):
+                            row_data[col] = "N/A"
+                        else:
+                            row_data[col] = str(val)
+                    result.append(row_data)
+                
+                return json.dumps({
+                    "answer": f"Found top {n} by {target_col}",
+                    "sorted_by": target_col,
+                    "top_value": float(top_rows.iloc[0][target_col]) if len(top_rows) > 0 else None,
+                    "results": result
+                }, indent=2)
         
-        # Category analysis
-        elif "category" in query_lower or "group" in query_lower:
+        # Category/Group analysis for "best performing", "which category"
+        elif any(word in query_lower for word in ["category", "group", "performs", "performing", "best"]):
             cat_cols = df.select_dtypes(include=['object', 'category']).columns
             numeric_cols = df.select_dtypes(include=[np.number]).columns
             
@@ -224,25 +268,35 @@ def query_data(query: str) -> str:
                 cat_col = cat_cols[0]
                 num_col = numeric_cols[0]
                 
-                # Check for specific columns in query
+                # Find specific columns
                 for col in cat_cols:
-                    if col.lower() in query_lower:
+                    if any(word in col.lower() for word in ["category", "type", "class", "group", "company", "model"]):
                         cat_col = col
                         break
+                
                 for col in numeric_cols:
-                    if col.lower() in query_lower:
+                    if any(word in col.lower() for word in ["price", "sales", "revenue", "income", "total", "amount"]):
                         num_col = col
                         break
                 
                 grouped = df.groupby(cat_col)[num_col].sum().sort_values(ascending=False).head(10)
+                top_category = grouped.index[0] if len(grouped) > 0 else "Unknown"
+                top_value = float(grouped.iloc[0]) if len(grouped) > 0 else 0
+                
                 return json.dumps({
-                    "analysis": "grouped_sum",
+                    "analysis": "category_performance",
                     "category_column": cat_col,
                     "value_column": num_col,
-                    "results": {str(k): float(v) for k, v in grouped.items()}
+                    "best_performer": top_category,
+                    "best_value": top_value,
+                    "top_10_results": {str(k): float(v) for k, v in grouped.items()}
                 }, indent=2)
         
-        return json.dumps({"message": "Please specify what data you want to query"})
+        # General overview
+        else:
+            return json.dumps({
+                "message": "I can help you find top values, best performers, or analyze categories. Try: 'Which customer has highest income?' or 'What are top 3 most expensive items?'"
+            })
         
     except Exception as e:
         return json.dumps({"error": str(e)})
@@ -416,7 +470,7 @@ tools = [
     Tool(
         name="QueryData",
         func=query_data,
-        description="Query and filter data. Find highest/lowest values, top performers, search for specific records. Use this to find specific data points like 'customer with highest income' or 'top 3 most expensive items'."
+        description="POWERFUL QUERY TOOL - Use for 'which/who/what' questions. Finds highest/lowest values WITH complete record details including names. Returns full row data. Use for: 'which customer has highest income?', 'what are top 3 most expensive items?', 'which category performs best?'. This tool gives you the complete answer in one call."
     ),
     Tool(
         name="GetStatistics",
@@ -441,31 +495,32 @@ def initialize_agent():
         if len(df.columns) > 20:
             cols_preview += f" (and {len(df.columns)-20} more)"
         
-        template = """You are Melody AI, a business analyst. Answer questions using the provided tools.
+        template = """You are Melody AI, a helpful business analyst assistant. Answer questions using the provided tools efficiently.
 
 Dataset columns: {columns_info}
 
-IMPORTANT INSTRUCTIONS:
-1. ALWAYS use GetDataInfo FIRST to see available columns
-2. For questions about "highest", "top", "best performing", use QueryData tool
-3. For visualizations, use CreateChart and specify the chart type (pie/bar/histogram/scatter)
-4. When CreateChart returns "CHART_CREATED", tell the user the chart is displayed above
-5. Keep responses concise and friendly
+CRITICAL RULES:
+1. For "which/who/what" questions about specific records (like "which customer has highest income"), use ONLY QueryData tool - it returns complete answers with names
+2. For visualizations, use ONLY CreateChart tool
+3. For statistics, use ONLY GetStatistics tool
+4. DO NOT use multiple tools for simple questions - ONE tool call is usually enough
+5. When you get a good answer from a tool, immediately provide the Final Answer
 
 Available tools:
 
 {tools}
 
-Use this format:
+Format:
 
-Question: the input question
-Thought: what should I do
+Question: user's question
+Thought: which single tool will answer this
 Action: tool name from [{tool_names}]
-Action Input: input for the tool
-Observation: tool output
-... (repeat Thought/Action/Input/Observation as needed)
-Thought: I now know the answer
-Final Answer: clear, friendly response to the user
+Action Input: the query
+Observation: tool result
+Thought: I have the answer
+Final Answer: friendly response with the information
+
+Begin!
 
 Question: {input}
 Thought:{agent_scratchpad}"""
@@ -476,7 +531,7 @@ Thought:{agent_scratchpad}"""
         )
         
         llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
+            model="gemini-1.5-flash",
             google_api_key=GEMINI_API_KEY,
             temperature=0.1,
             convert_system_message_to_human=True
@@ -493,7 +548,7 @@ Thought:{agent_scratchpad}"""
             tools=tools,
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=10,
+            max_iterations=8,
             max_execution_time=90
         )
     except Exception as e:
@@ -577,4 +632,3 @@ st.markdown(
     "</div>",
     unsafe_allow_html=True
 )
-
